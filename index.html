@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Geometry Sonic Cube</title>
+<style>
+  body {
+    margin: 0; 
+    background: linear-gradient(to bottom, #87ceeb, #1e90ff);
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  #gameCanvas {
+    background: #70c5ce;
+    display: block;
+    margin: 0 auto;
+    border: 3px solid #333;
+    border-radius: 10px;
+  }
+  #score {
+    color: white;
+    font-size: 24px;
+    position: absolute;
+    left: 20px;
+    top: 20px;
+    text-shadow: 1px 1px 3px #000;
+  }
+</style>
+</head>
+<body>
+
+<div id="score">Pontuação: 0</div>
+<canvas id="gameCanvas" width="800" height="400"></canvas>
+
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  
+  // Jogador - cubo
+  const player = {
+    x: 50,
+    y: 0,
+    width: 40,
+    height: 40,
+    color: '#ff5722',
+    dy: 0,
+    gravity: 0.8,
+    jumpPower: 15,
+    grounded: false,
+  };
+  
+  // Chão
+  const groundHeight = 80;
+  
+  // Obstáculos
+  let obstacles = [];
+  let obstacleFrequency = 90; // frames para gerar obstáculo
+  let frameCount = 0;
+  
+  // Pontuação
+  let score = 0;
+  const scoreDiv = document.getElementById('score');
+  
+  // Estado do jogo
+  let gameOver = false;
+  
+  // Controle de pulo
+  document.addEventListener('keydown', (e) => {
+    if ((e.code === 'Space' || e.code === 'ArrowUp') && player.grounded && !gameOver) {
+      player.dy = -player.jumpPower;
+      player.grounded = false;
+    }
+    if (gameOver && e.code === 'Enter') {
+      restartGame();
+    }
+  });
+  
+  function restartGame() {
+    obstacles = [];
+    player.y = 0;
+    player.dy = 0;
+    player.grounded = false;
+    score = 0;
+    frameCount = 0;
+    gameOver = false;
+    loop();
+  }
+  
+  function createObstacle() {
+    const height = Math.floor(Math.random() * 60) + 30;
+    obstacles.push({
+      x: canvas.width + 20,
+      y: canvas.height - groundHeight - height,
+      width: 20,
+      height: height,
+      color: '#007700',
+      speed: 6,
+    });
+  }
+  
+  function update() {
+    if (gameOver) return;
+    
+    frameCount++;
+    score = Math.floor(frameCount / 5);
+    scoreDiv.textContent = 'Pontuação: ' + score;
+    
+    // Criar obstáculos
+    if (frameCount % obstacleFrequency === 0) {
+      createObstacle();
+      // Pode ir aumentando a dificuldade com o tempo:
+      if (obstacleFrequency > 40) obstacleFrequency -= 1;
+    }
+    
+    // Atualizar jogador
+    player.dy += player.gravity;
+    player.y += player.dy;
+    
+    // Colisão com chão
+    if (player.y + player.height >= canvas.height - groundHeight) {
+      player.y = canvas.height - groundHeight - player.height;
+      player.dy = 0;
+      player.grounded = true;
+    }
+    
+    // Atualizar obstáculos
+    obstacles.forEach((obs, index) => {
+      obs.x -= obs.speed;
+      
+      // Remover obstáculos que saíram da tela
+      if (obs.x + obs.width < 0) {
+        obstacles.splice(index, 1);
+      }
+      
+      // Colisão com jogador (AABB)
+      if (player.x < obs.x + obs.width &&
+          player.x + player.width > obs.x &&
+          player.y < obs.y + obs.height &&
+          player.y + player.height > obs.y) {
+        gameOver = true;
+      }
+    });
+  }
+  
+  function draw() {
+    // Limpar tela
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Desenhar chão
+    ctx.fillStyle = '#654321';
+    ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+    
+    // Desenhar jogador (cubo)
+    ctx.fillStyle = player.color;
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+    
+    // Desenhar obstáculos
+    obstacles.forEach((obs) => {
+      ctx.fillStyle = obs.color;
+      ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+    });
+    
+    if (gameOver) {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'white';
+      ctx.font = '48px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Game Over', canvas.width/2, canvas.height/2 - 20);
+      ctx.font = '24px Arial';
+      ctx.fillText('Pressione Enter para reiniciar', canvas.width/2, canvas.height/2 + 30);
+    }
+  }
+  
+  function loop() {
+    update();
+    draw();
+    if (!gameOver) {
+      requestAnimationFrame(loop);
+    }
+  }
+  
+  // Iniciar jogo
+  restartGame();
+</script>
+
+</body>
+</html>
